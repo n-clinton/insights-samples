@@ -16,6 +16,10 @@ You can learn more about the products on the [product page](https://mapsplatform
 
 [Docs](https://developers.google.com/maps/documentation/roads-management-insights) | [Demo](https://google-rmi-demo-1024202510105.us-central1.run.app/)
 
+### Population Dynamics Insights
+
+[Docs](https://developers.google.com/maps/documentation/population-dynamics-insights)
+
 ## Available Recipe Collections
 
 *   [`places_insights/`](places_insights/): Samples for analyzing the Places Insights BigQuery dataset.
