@@ -6,7 +6,7 @@
 
 This guide demonstrates how to use **Population Dynamics Insights (PDI)** alongside **Google Earth Engine (GEE)** to perform **Custom Boundary Aggregation**: taking native S2 cell (Level 12) embeddings and accurately rolling them up into custom, arbitrary polygons (like drive-time isochrones or sales territories) using a highly precise **Population-Weighted Average**.
 
-**The Scenario:** You want to use PDI's 330-dimensional embeddings as features in an ML model predicting retail store performance. Your target geographic boundaries are 5km radii. Because human activity is rarely spread evenly across physical space, a naive "area-weighted" aggregation (assuming a 50% overlap equals 50% of the signal) will warp your ML features. By performing all calculations directly in BigQuery, we leverage high-resolution raster population data, specifically the [WorldPop USA 2025 Population Counts (100m resolution) dataset](https://hub.worldpop.org/geodata/summary?id=75983) (see attribution and licensing at the end of this notebook), to properly weight each intersecting S2 "sliver" based on actual human density.
+**The Scenario:** You want to use PDI's 330-dimensional embeddings as features in an ML model predicting retail store performance. Your target geographic boundaries are 5km radii. Because human activity is rarely spread evenly across physical space, a naive "area-weighted" aggregation (assuming a 50% overlap equals 50% of the signal) will warp your ML features. By performing all calculations directly in BigQuery, we leverage high-resolution raster population data, specifically the[WorldPop USA 2025 Population Counts (100m resolution) dataset](https://hub.worldpop.org/geodata/summary?id=75983) (see attribution and licensing at the end of this notebook), to properly weight each intersecting S2 "sliver" based on actual human density.
 
 *🌟 Note on Temporal Alignment: We explicitly align our 2025 PDI Embeddings with the 2025 WorldPop demographic dataset to avoid temporal confounding, a critical best practice in spatial machine learning!*
 
@@ -31,8 +31,11 @@ This guide demonstrates how to use **Population Dynamics Insights (PDI)** alongs
 
 ### How to Use This Notebook
 
-1.  **Prerequisites & Secrets:** Before running this notebook, you must:
+1.  **Prerequisites:** Before running this notebook, you must:
     *   Enable the **BigQuery API** and the **Google Earth Engine API** in your Google Cloud Project.
-    *   Configure an environment variable in the Colab "Secrets" tab (the **key icon** on the left menu): `GCP_PROJECT_ID`. This should be your Google Cloud Project ID. **Crucially, this project must be authorized to access the US Population Dynamics Insights dataset.**
+    *   **Project Authentication:**
+        *   **Standard Colab Users:** Configure an environment variable in the Colab "Secrets" tab (the **key icon** on the left menu) named `GCP_PROJECT_ID`. This should be your Google Cloud Project ID.
+        *   **Colab Enterprise / Vertex AI Users:** No secret configuration is needed. The notebook will automatically authenticate using the active Google Cloud Project you are working in.
+    *   **Crucially, the Google Cloud Project you use must have an active subscription/authorization to access the US Population Dynamics Insights dataset.**
 2.  **Authentication:** The first code cell will prompt you to authenticate your Google Account. Ensure the account you use has BigQuery Data Viewer/Job User permissions and Earth Engine Resource Viewer permissions for your Project ID.
 3.  **Run the Cells:** Once authenticated, execute the cells in order from top to bottom.
