@@ -152,8 +152,10 @@ async function runQuery() {
                 body: JSON.stringify({ query: sqlQuery, useLegacySql: false, maxResults: 100000 })
             });
             
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error?.message || 'API request failed.');
+            const initialResult = await response.json();
+            if (!response.ok) throw new Error(initialResult.error?.message || 'API request failed.');
+
+            const result = await fetchAllQueryRows(GCP_PROJECT_ID, initialResult, token);
 
             document.getElementById('view-query-btn').classList.remove('hidden');
             if (searchCircle) searchCircle.setMap(null); // Hide circle so heatmap is visible
@@ -273,8 +275,10 @@ async function runQuery() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ query: sqlQuery, useLegacySql: false, maxResults: 100000 })
             });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error?.message || 'API request failed.');
+            const initialResult = await response.json();
+            if (!response.ok) throw new Error(initialResult.error?.message || 'API request failed.');
+
+            const result = await fetchAllQueryRows(GCP_PROJECT_ID, initialResult, token);
             
             document.getElementById('view-query-btn').classList.remove('hidden');
             
@@ -440,4 +444,68 @@ function buildH3FunctionQuery(countryCode) {
         )
       )
     `;
+}
+
+/**
+ * Polls and fetches all rows for a BigQuery query job, handling pagination and timeouts.
+ */
+async function fetchAllQueryRows(projectId, initialResult, token) {
+    if (initialResult.jobComplete && !initialResult.pageToken) {
+        return initialResult;
+    }
+
+    const jobReference = initialResult.jobReference;
+    const jobId = jobReference.jobId;
+    const location = jobReference.location;
+    let rows = initialResult.rows || [];
+    let pageToken = initialResult.pageToken;
+    let schema = initialResult.schema;
+    let jobComplete = initialResult.jobComplete;
+
+    let url = `https://bigquery.googleapis.com/bigquery/v2/projects/${projectId}/queries/${jobId}`;
+    if (location) {
+        url += `?location=${location}`;
+    }
+
+    // 1. Poll until job is complete
+    while (!jobComplete) {
+        updateStatus('Waiting for query results...');
+        // Wait 1 second before polling
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || 'Failed to fetch query results.');
+
+        jobComplete = result.jobComplete;
+        if (jobComplete) {
+            schema = result.schema;
+            if (result.rows) rows.push(...result.rows);
+            pageToken = result.pageToken;
+        }
+    }
+
+    // 2. Paginate using pageToken
+    while (pageToken) {
+        updateStatus(`Loading results (loaded ${rows.length.toLocaleString()})...`);
+        let pageUrl = `https://bigquery.googleapis.com/bigquery/v2/projects/${projectId}/queries/${jobId}?pageToken=${pageToken}`;
+        if (location) {
+            pageUrl += `&location=${location}`;
+        }
+
+        const response = await fetch(pageUrl, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || 'Failed to fetch paginated results.');
+
+        if (result.rows) rows.push(...result.rows);
+        pageToken = result.pageToken;
+    }
+
+    return { schema, rows, totalRows: rows.length.toString() };
 }
